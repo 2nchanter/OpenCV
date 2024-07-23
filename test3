@@ -1,0 +1,41 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 이미지 읽기
+img = cv2.imread('your_image_path', cv2.IMREAD_GRAYSCALE)
+
+# 히스토그램 균일화
+equ = cv2.equalizeHist(img)
+
+# 빈 밝기 값 찾기
+hist = cv2.calcHist([equ], [0], None, [256], [0, 256])
+empty_bins = np.where(hist == 0)[0]
+
+# 빈 밝기 값을 보간하여 채우기
+for bin in empty_bins:
+    left = bin - 1
+    right = bin + 1
+    
+    while left >= 0 and hist[left] == 0:
+        left -= 1
+    
+    while right < 256 and hist[right] == 0:
+        right += 1
+    
+    if left >= 0 and right < 256:
+        interpolated_value = (left + right) // 2
+        equ[equ == bin] = interpolated_value
+
+# 결과 표시
+plt.figure(figsize=(12, 6))
+
+plt.subplot(1, 2, 1)
+plt.title('Original Image')
+plt.imshow(img, cmap='gray')
+
+plt.subplot(1, 2, 2)
+plt.title('Interpolated Histogram Equalized Image')
+plt.imshow(equ, cmap='gray')
+
+plt.show()
