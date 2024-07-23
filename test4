@@ -1,0 +1,58 @@
+import cv2
+import numpy as np
+from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
+
+def normalize_histogram(img):
+    # 히스토그램 계산
+    hist, bins = np.histogram(img.flatten(), 256, [0, 256])
+    
+    # CDF 계산
+    cdf = hist.cumsum()
+    cdf_normalized = cdf * hist.max() / cdf.max()
+
+    # CDF의 0이 아닌 부분 찾기
+    cdf_m = np.ma.masked_equal(cdf, 0)
+    cdf_m = (cdf_m - cdf_m.min()) * 255 / (cdf_m.max() - cdf_m.min())
+    cdf = np.ma.filled(cdf_m, 0).astype('uint8')
+
+    # 이미지의 픽셀 값을 CDF 값으로 매핑
+    img2 = cdf[img]
+    return img2
+
+def interpolate_missing_brightness(img):
+    # 히스토그램 계산
+    hist, bins = np.histogram(img.flatten(), 256, [0, 256])
+
+    # 픽셀이 있는 밝기 값만 선택
+    x_nonzero = np.where(hist > 0)[0]
+    y_nonzero = hist[hist > 0]
+
+    # 선형 보간법 함수 생성
+    linear_interp = interp1d(x_nonzero, y_nonzero, kind='linear', fill_value="extrapolate")
+
+    # 보간된 히스토그램 데이터 생성
+    interpolated_hist = linear_interp(np.arange(256))
+
+    # 보간된 히스토그램을 사용하여 이미지 재구성
+    lut = np.zeros(256, dtype=np.uint8)
+    for i in range(256):
+        lut[i] = int(interpolated_hist[i])
+    img_interpolated = cv2.LUT(img, lut)
+    
+    return img_interpolated
+
+# 이미지 불러오기
+img = cv2.imread('path_to_your_image.jpg', cv2.IMREAD_GRAYSCALE)
+
+# 히스토그램 평활화
+img_normalized = normalize_histogram(img)
+
+# 밝기 값 보간
+img_interpolated = interpolate_missing_brightness(img_normalized)
+
+# 결과 출력
+plt.subplot(131), plt.imshow(img, 'gray'), plt.title('Original Image')
+plt.subplot(132), plt.imshow(img_normalized, 'gray'), plt.title('Normalized Image')
+plt.subplot(133), plt.imshow(img_interpolated, 'gray'), plt.title('Interpolated Image')
+plt.show()
