@@ -1,0 +1,77 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 이미지 경로 설정
+image_path = r"C:\Users\choi-youngchan\Desktop\HTK_CYC\python\src_img\hist_stretch\percentage_lot\C_Image_0007.tif"
+
+# 이미지를 그레이스케일로 로드
+image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+# 이미지를 16비트로 변환
+image_16bit = np.uint16(image) * 256
+
+# 히스토그램 계산
+hist = cv2.calcHist([image_16bit], [0], None, [65536], [0, 65536])
+accumulator = np.cumsum(hist)
+
+clip_hist_percent = 1
+maximum = accumulator[-1]
+clip_hist_percent *= (maximum / 100.0) / 2.0
+
+# 히스토그램 클리핑
+minimum_gray = np.searchsorted(accumulator, clip_hist_percent)
+maximum_gray = np.searchsorted(accumulator, maximum - clip_hist_percent, side='right')
+
+# 히스토그램 스트레칭을 위한 알파와 베타 계산
+alpha = 65535 / (maximum_gray - minimum_gray)
+beta = -minimum_gray * alpha
+
+# 히스토그램 스트레칭 적용
+stretched_image = cv2.convertScaleAbs(image_16bit, alpha=alpha, beta=beta)
+
+# 타겟 밝기 설정
+target_brightness = 32767  # 16비트에서 중간 값
+
+# 감마 값 계산
+gamma = np.log10(target_brightness / 65535.0) / np.log10(np.mean(stretched_image) / 65535.0)
+gamma_corrected = np.clip(gamma, 0.1, 5.0)
+
+# 감마 변환 테이블 생성
+gamma_table = np.array([((i / 65535.0) ** gamma_corrected) * 65535 for i in range(65536)], dtype=np.uint16)
+gamma_corrected_image = cv2.LUT(stretched_image, gamma_table)
+
+# 최종적으로 8비트로 변환
+final_image = (gamma_corrected_image / 256).astype(np.uint8)
+
+# 결과 이미지 저장
+cv2.imwrite(image_path[:-4] + "_1_result.jpg", final_image)
+
+# 통계 정보 출력
+print(
+    round(np.mean(image), 2), round(np.std(image), 2),
+    round(np.mean(stretched_image), 2), round(np.std(stretched_image), 2),
+    round(np.mean(final_image), 2), round(np.std(final_image), 2)
+)
+
+# 히스토그램 계산
+hist_image = cv2.calcHist([image], [0], None, [256], [0, 256]).flatten()
+hist_stretched_image = cv2.calcHist([stretched_image], [0], None, [65536], [0, 65536]).flatten()
+hist_final_image = cv2.calcHist([final_image], [0], None, [256], [0, 256]).flatten()
+
+# 히스토그램 그래프 그리기
+hists = {
+    'Original': hist_image,
+    'Stretched': hist_stretched_image,
+    'Final': hist_final_image
+}
+
+for l, (k, v) in enumerate(hists.items()):
+    plt.subplot(1, 3, l + 1)
+    plt.title(k)
+    plt.plot(v)
+    plt.xlim([0, 255] if k == 'Original' or k == 'Final' else [0, 65535])
+plt.tight_layout()
+plt.savefig(image_path[:-4] + "_plot.png")
+plt.show()
+plt.clf()
