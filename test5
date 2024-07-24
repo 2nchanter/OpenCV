@@ -1,0 +1,57 @@
+import cv2
+import numpy as np
+from scipy.ndimage import gaussian_filter1d
+import matplotlib.pyplot as plt
+
+def smooth_histogram(hist, sigma=1):
+    """Smooth histogram using Gaussian filter."""
+    return gaussian_filter1d(hist, sigma=sigma)
+
+def histogram_equalization(image, smoothed_hist):
+    """Apply histogram equalization based on smoothed histogram."""
+    # Calculate the cumulative distribution function (CDF) of the smoothed histogram
+    cdf = smoothed_hist.cumsum()
+    cdf_normalized = cdf / cdf[-1]  # Normalize the CDF
+    
+    # Map the original pixel values to the new pixel values using the CDF
+    image_flat = image.flatten()
+    equalized_image_flat = np.interp(image_flat, np.arange(256), cdf_normalized * 255)
+    
+    # Reshape the flattened image back to the original image shape
+    equalized_image = equalized_image_flat.reshape(image.shape).astype(np.uint8)
+    
+    return equalized_image
+
+# Load the image
+image = cv2.imread('path_to_image.jpg', cv2.IMREAD_GRAYSCALE)
+
+# Calculate the original histogram
+hist, bins = np.histogram(image.flatten(), 256, [0, 256])
+
+# Smooth the histogram
+sigma = 5  # Standard deviation for Gaussian kernel
+smoothed_hist = smooth_histogram(hist, sigma=sigma)
+
+# Apply histogram equalization
+equalized_image = histogram_equalization(image, smoothed_hist)
+
+# Plot the original and equalized images
+plt.figure(figsize=(12, 6))
+plt.subplot(2, 2, 1)
+plt.title("Original Image")
+plt.imshow(image, cmap='gray')
+
+plt.subplot(2, 2, 2)
+plt.title("Equalized Image")
+plt.imshow(equalized_image, cmap='gray')
+
+# Plot the original and smoothed histograms
+plt.subplot(2, 2, 3)
+plt.title("Original Histogram")
+plt.plot(hist)
+
+plt.subplot(2, 2, 4)
+plt.title("Smoothed Histogram")
+plt.plot(smoothed_hist)
+
+plt.show()
