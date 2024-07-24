@@ -1,0 +1,43 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def normalize_16bit_to_8bit_with_histogram(image_path, output_path):
+    # 16비트 이미지 읽기
+    image_16bit = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    
+    # 이미지가 16비트인지 확인
+    if image_16bit is None or image_16bit.dtype != np.uint16:
+        raise ValueError("입력 이미지는 16비트 이미지여야 합니다.")
+    
+    # 16비트 이미지를 8비트로 정규화
+    image_8bit = cv2.normalize(image_16bit, None, 0, 255, cv2.NORM_MINMAX)
+    image_8bit = np.uint8(image_8bit)
+    
+    # 8비트 이미지 저장
+    cv2.imwrite(output_path, image_8bit)
+    
+    # 히스토그램 그리기
+    plt.figure(figsize=(12, 6))
+    
+    # 16비트 이미지 히스토그램
+    plt.subplot(1, 2, 1)
+    plt.hist(image_16bit.ravel(), bins=65536, color='blue', alpha=0.7)
+    plt.title('Histogram of 16-bit Image')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    
+    # 8비트 이미지 히스토그램
+    plt.subplot(1, 2, 2)
+    plt.hist(image_8bit.ravel(), bins=256, color='green', alpha=0.7)
+    plt.title('Histogram of 8-bit Image')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    
+    plt.tight_layout()
+    plt.show()
+
+# 예시 사용
+input_image_path = 'path_to_16bit_image.png'
+output_image_path = 'path_to_output_8bit_image.png'
+normalize_16bit_to_8bit_with_histogram(input_image_path, output_image_path)
