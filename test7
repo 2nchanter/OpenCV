@@ -1,0 +1,40 @@
+import cv2
+import numpy as np
+
+def normalize_16bit_image(image_path):
+    # 16-bit 이미지를 읽어옵니다
+    img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+
+    # 이미지가 16-bit인지 확인합니다
+    if img.dtype != np.uint16:
+        raise ValueError("Input image is not 16-bit")
+
+    # 이미지의 히스토그램을 계산합니다
+    hist = cv2.calcHist([img], [0], None, [65536], [0, 65536])
+
+    # 하위 1%와 상위 1%에 해당하는 픽셀 값을 찾습니다
+    total_pixels = img.size
+    lower_bound = np.percentile(img, 1)
+    upper_bound = np.percentile(img, 99)
+
+    # 하위 1%와 상위 1%에 해당하는 값을 제거합니다
+    img_clipped = np.clip(img, lower_bound, upper_bound)
+
+    # 이미지를 0과 1 사이로 정규화합니다
+    normalized_img = (img_clipped - lower_bound) / (upper_bound - lower_bound)
+    normalized_img = np.clip(normalized_img, 0, 1)  # 안전을 위해 추가적인 클리핑
+
+    # 정규화된 이미지를 8-bit로 변환합니다
+    normalized_img_8bit = (normalized_img * 255).astype(np.uint8)
+
+    return normalized_img_8bit
+
+# 테스트용 코드
+image_path = 'path_to_your_16bit_image.png'
+normalized_img_8bit = normalize_16bit_image(image_path)
+
+# 결과를 저장하거나 표시합니다
+cv2.imwrite('normalized_8bit_image.png', normalized_img_8bit)
+cv2.imshow('Normalized 8-bit Image', normalized_img_8bit)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
